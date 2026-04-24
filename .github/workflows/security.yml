@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
 permissions:
   actions: read
-  security-events: write
   contents: read
 
 jobs:
@@ -19,10 +18,11 @@ jobs:
             --output DependenciesAnalysisFull.sarif
             ./
         continue-on-error: true
-      - name: upload sarif
-        uses: github/codeql-action/upload-sarif@v3
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          sarif_file: DependenciesAnalysisFull.sarif
+          name: dependencies-report
+          path: DependenciesAnalysisFull.sarif
 
   sourcecode:
     runs-on: ubuntu-latest
@@ -32,7 +32,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: run semgrep
         run: semgrep --config .semgrep --sarif > semgrep.sarif || true
-      - name: upload sarif
-        uses: github/codeql-action/upload-sarif@v3
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          sarif_file: semgrep.sarif
+          name: sourcecode-report
+          path: semgrep.sarif
