@@ -1,0 +1,56 @@
+name: security-pr
+on:
+  pull_request:
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run osv-scanner after PR
+        uses: google/osv-scanner-action/osv-scanner-action@v1.9.1
+        with:
+          scan-args: |-
+            --format sarif
+            --output osv-after.sarif
+            ./
+        continue-on-error: true
+      - name: checkout baseline commit
+        run: git checkout ${{ github.event.pull_request.base.sha }}
+      - name: run osv-scanner before PR
+        uses: google/osv-scanner-action/osv-scanner-action@v1.9.1
+        with:
+          scan-args: |-
+            --format sarif
+            --output osv-before.sarif
+            ./
+        continue-on-error: true
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependencies-diff-report
+          path: |
+            osv-after.sarif
+            osv-before.sarif
+
+  sourcecode:
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: run semgrep differential
+        run: |
+          semgrep --config .semgrep \
+            --baseline-commit ${{ github.event.pull_request.base.sha }} \
+            --sarif > semgrep-diff.sarif || true
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sourcecode-diff-report
+          path: semgrep-diff.sarif
